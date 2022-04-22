@@ -8,62 +8,97 @@ class Library(object):
         self.name = name
         self.address = address
         self.borrow_info = create_transaction_info('borrowing.csv')
-        self.items = create_items('items.csv', parse_file('borrowing.csv'))
-        self.members = create_members('members.csv', parse_file('borrowing.csv'))
+        self.items = create_items('items.csv', self.borrow_info)
+        self.members = create_members('members.csv', self.borrow_info)
 
-    # item methods
+    # item methods !! search by author as well
     def search_items(self, word):
         word = word.lower().strip()
         results = []
+
+        # if the search word is present in the title, add the item to the results list
         for i in self.items.values():
             title = i.title.lower().split()
             if word in title:
                 results.append(i.item_id)
 
-        # display results
+        # display ite
         for r in results:
             print(self.items[r])
 
-    # better way?
-    def borrow_items(self):
-        borrow_input = input("Would you like to borrow an item? \n"
-                             "If yes, enter item ID\n"
-                             "If no, enter exit\n").strip()
+    def borrow_item(self, borrow_input):
+        # return to command line menu
         if borrow_input == 'exit':
             return
         else:
+            member_id = input('Enter your member ID: ')
+            # check if the item is available
+            if not self.items[borrow_input].available:
+                print('This item is unavailable for borrowing')
+                return
+            # make the item unavailable
             self.items[borrow_input].available = False
-            # !! add entry to borrowing.csv
+            transaction_id = 'T'+str(len(self.borrow_info) + 1)
+            today = date.today().strftime('%d/%m/%Y')
+            expected_return = '+ 2 weeks'   # !! look up/figure out pls
+            # add the transaction to borrow_info
+            self.borrow_info[transaction_id] = [member_id, borrow_input, today, expected_return, '']
+            # add the transaction to the member
+            self.members[member_id].items[transaction_id] = (today, '')
+
+            # update borrowing.csv
+            self. update_borrow_csv()
             return
 
     def return_item(self, item, member):
         # mark item as available in the library
         self.items[item].available = True
-        with open('borrowing.csv') as borrow_csv:
-            print(borrow_csv)
-            # add return date to borrowing_csv
 
-        # check if item is overdue
-        today = date.today()
-        for i in range(0, len(self.borrow_info[member])):
-            if self.borrow_info[member][i][1] == item:
-                return_date = datetime.strptime(self.borrow_info[member][i][3], '%d/%m/%Y').date()
-                if today > return_date:
-                    # calculate how many days late the item was returned
-                    days_late = int((today - return_date).total_seconds() / 86400)
-                    self.members[member].fine += 1.0 * days_late
+        # update borrow_info and member.items
+        transaction_id = str
+        for i in self.borrow_info.items():
+            if i[1][0] == member and i[1][1] == item and i[1][4] == '':
+                transaction_id = i[0]
+        today_obj = date.today()
+        today = today_obj.strftime('%d/%m/%Y')
+        self.borrow_info[transaction_id][4] = today
+        self.members[member].items[transaction_id] = (self.members[member].items[transaction_id][0], today)
+        self.update_borrow_csv()
+
+        # check if item is overdue and update the member's fine
+        latest_return_date = datetime.strptime(self.borrow_info[transaction_id][3], '%d/%m/%Y').date()
+        if today_obj > latest_return_date:
+            # calculate how many days late the item was returned and the fine
+            days_late = int((today_obj - latest_return_date).total_seconds() / 86400)
+            self.members[member].fine += 0,25 * days_late
+
+    def update_borrow_csv(self):
+        labels = ['Transaction ID', 'Member ID', 'Item ID', 'Borrow date', 'Last expected return', 'Return date']
+        rows = []
+        for i in self.borrow_info.items():
+            # append the updated information to a list
+            a = [i[0], i[1][0], i[1][1], i[1][2], i[1][3], i[1][4]]
+            rows.append(a)
+        # write the updated information to borrowing.csv
+        with open('borrowing.csv', 'w+') as borrowing_csv:
+            csv_writer = csv.writer(borrowing_csv, lineterminator='\n')
+            csv_writer.writerow(labels)
+            csv_writer.writerows(rows)
 
     def add_item(self):
+        # create item ID
         item_id = 'I' + str(len(self.items) + 1)
         category = input("category: \n"
                          "a. Book \n"
                          "b. Article \n"
                          "c. Digital Media\n")
+        # collect all necessary info of the item
         title = input("title: ")
         l_name = input("last name of author/director: ")
         f_name = input("first name of author/director: ")
         year = int(input("year of release/publication: "))
         journal = input("Which journal was it published (if not press enter): ")
+        # create specific item                  better way? can you write Items and the correct item will be made?
         if category == 'a':
             self.items[item_id] = Book(item_id, title, l_name, f_name, year)
         elif category == 'b':
@@ -79,8 +114,10 @@ class Library(object):
     def edit_item(self, id):
         item_input = input("Would you like to edit the following item: {} by {} {} (press enter to confirm or enter "
                           "exit) ".format(self.items[id].title, self.items[id].f_name, self.items[id].l_name))
+        # return to command line menu
         if item_input.strip() == 'exit':
             return
+        # choose what item info to edit
         type_edit = input('What would you like to edit? \n'
                           'a. Item ID \n'
                           'b. Category \n'
@@ -91,7 +128,7 @@ class Library(object):
                           'g. Journal \n')
         if type_edit == 'a':
             i = input("Enter Item ID: ")
-            self.items[id].item_id = i 
+            self.items[id].item_id = i
         elif type_edit == 'b':
             i = input("Enter Category: ")
             self.items[id].type = i
@@ -111,7 +148,7 @@ class Library(object):
             i = input("Enter Journal: ")
             self.items[id].journal = i
             # !! error handling if book or article
-        else: 
+        else:
             print("error bitch")
             # !! error handling
         self.update_items_csv()
@@ -121,9 +158,10 @@ class Library(object):
         self.update_items_csv()
 
     def update_items_csv(self):
-        fields = ['Item ID', 'Category', 'Title', 'Last name', 'First name', 'publication year', 'journal']
+        labels = ['Item ID', 'Category', 'Title', 'Last name', 'First name', 'publication year', 'journal']
         rows = []
         for i in self.items.values():
+            # append the updated information to a list depending on type of item
             if i.type == 'Book':
                 a = [i.item_id, i.type, i.title, i.l_name, i.f_name, i.year]
                 rows.append(a)
@@ -133,14 +171,17 @@ class Library(object):
             else:
                 a = [i.item_id, i.type, i.title, i.l_name, i.f_name, i.year]
                 rows.append(a)
+        # write the updated information to items.csv
         with open('items.csv', 'w+') as items_csv:
             csv_writer = csv.writer(items_csv, lineterminator='\n')
-            csv_writer.writerow(fields)
+            csv_writer.writerow(labels)
             csv_writer.writerows(rows)
 
     # member methods
     def add_member(self):
+        # create member ID
         member_id = 'M' + str(len(self.members) + 1)
+        # collect necessary member info
         l_name = input("Enter last name: ")
         f_name = input("Enter first name: ")
         dob = input("Enter Date of Birth: ")
@@ -153,8 +194,10 @@ class Library(object):
         item_input = input("Would you like to edit the following member: {} {} (Member ID: {}) (press enter to "
                            "confirm or enter exit) ".format(self.members[id].f_name, self.members[id].l_name,
                                                             self.members[id].member_id))
+        # return to command line
         if item_input.strip() == 'exit':
             return
+        # choose what member info to edit
         type_edit = input('What would you like to edit? \n'
                           'a. Member ID \n'
                           'b. Last Name \n'
@@ -190,14 +233,16 @@ class Library(object):
         self.update_members_csv()
 
     def update_members_csv(self):
-        fields = ['Member ID', 'Last name', 'First name', 'Date of Birth', 'Street', 'City']
+        labels = ['Member ID', 'Last name', 'First name', 'Date of Birth', 'Street', 'City']
         rows = []
         for i in self.members.values():
+            # append the updated information to a list
             a = [i.member_id, i.l_name, i.f_name, i.dob, i.street, i.city]
             rows.append(a)
+        # write the updated information to members.csv
         with open('members.csv', 'w+') as members_csv:
             csv_writer = csv.writer(members_csv, lineterminator='\n')
-            csv_writer.writerow(fields)
+            csv_writer.writerow(labels)
             csv_writer.writerows(rows)
 
     def __str__(self):
@@ -241,7 +286,7 @@ class Items(object):
 
 
 class Book(Items):
-    def __init__(self, ID, title, l_name, f_name, yof=0000):  # publisher better way?
+    def __init__(self, ID, title, l_name, f_name, yof=0000):
         Items.__init__(self, ID, 'Book', title)
         self.l_name = l_name
         self.f_name = f_name
@@ -293,18 +338,14 @@ class DigitalMedia(Items):
 
 # methods       # better way?
 
-# why did I think this was a better way? unnecessary?
 def create_transaction_info(file):
     with open(file, 'r') as csvfile:
         reader = csv.reader(csvfile)
-        next(reader)  # better way?
+        next(reader)
         entries = {}
         for row in reader:
-            info = (row[0], row[2], row[3], row[4], row[5])
-            if row[1] in entries.keys():
-                entries[row[1]].append(info)
-            else:
-                entries[row[1]] = [info]
+            info = [row[1], row[2], row[3], row[4], row[5]]
+            entries[row[0]] = info
     return entries
 
 
@@ -312,20 +353,20 @@ def parse_file(file):
     entries = []
     with open(file, 'r') as csvfile:
         reader = csv.reader(csvfile)
-        next(reader)  # better way?
+        next(reader)
         for row in reader:
             entries.append(row)
     return entries
 
 
-def create_members(file, items_info):
+def create_members(file, borrow_info):
     member_info = parse_file(file)
     members_dict = {}
     for m in member_info:
         borrowed_dict = {}
-        for i in items_info:
-            if i[1] == m[0]:
-                borrowed_dict[i[0]] = (i[2], i[3])
+        for i in borrow_info.items():
+            if i[1][0] == m[0]:
+                borrowed_dict[i[0]] = (i[1][2], i[1][4])
         members_dict[m[0]] = Members(m[0], m[1], m[2], m[3], m[4], m[5], borrowed_dict)
     return members_dict
 
@@ -335,6 +376,7 @@ def create_items(file, borrow_info):
     items_dic = {}
     for i in item_info:
         item_type = i[1].lower().strip()
+        # depending on item type create that instance
         if item_type == 'book':
             items_dic[i[0]] = Book(i[0], i[2], i[3], i[4], int(i[5]))
         elif item_type == 'article':
@@ -343,15 +385,12 @@ def create_items(file, borrow_info):
             items_dic[i[0]] = DigitalMedia(i[0], i[2], i[3], i[4], int(i[5]))
         else:
             print('unable to create item, unknown item type')
-            # error better way?
+            # !! error handling
 
-    # better way?!
-    for j in borrow_info:
-        if j[5] == '':
-            items_dic[j[2]].available = False
-
-    # for k in items_dic.values():
-    #     print(k)
+    # label borrowed items as unavailable
+    for b in borrow_info.values():
+        if b[4] == '':
+            items_dic[b[1]].available = False
     return items_dic
 
 
@@ -360,7 +399,7 @@ def main():
     library = Library('The University Library', 'Park House, 191 N Circular Rd, Co. Dublin, D07 EWV4, Ireland')
     while True:
         try:
-            # create menu
+            # create command line menu
             i = int(input("What would you like to do?\n"
                           "1. Browse Items?\n"
                           "2. Check availability?\n"
@@ -369,10 +408,15 @@ def main():
                           "5. Return Item?\n"
                           "6. Quit program\n"))
             # call correct function depending on user input
+            # Browse items
             if i == 1:
                 search_input = input("Enter your keyword: ")
                 library.search_items(search_input)
-                library.borrow_items()
+                borrow_input = input("Would you like to borrow an item? \n"
+                                     "If yes, enter item ID\n"
+                                     "If no, enter exit\n").strip()
+                library.borrow_item(borrow_input)
+            # Check availability of items
             elif i == 2:
                 id_input = input("Enter the item ID: ")
                 if library.items[id_input].available:
@@ -381,46 +425,54 @@ def main():
                 else:
                     print('{} (Item ID: {}) is unavailable for borrowing'.format(library.items[id_input].title,
                                                                                  library.items[id_input].item_id))
+            # Members
             elif i == 3:
                 choice_input = input("Would you like to \n"
                                      "a. add a member \n"
                                      "b. edit a member \n"
                                      "c. remove a member \n")
                 choice_input.lower().strip()
+                # add member instance
                 if choice_input == 'a':
                     library.add_member()
+                # edit member instance
                 elif choice_input == 'b':
                     id_input = input("Enter Member ID: ")
                     library.edit_member(id_input)
+                # delete member instance
                 elif choice_input == 'c':
                     id_input = input("Enter member ID: ")
                     library.delete_member(id_input)
                 else:
                     print("erro bitch")
                     # !! error handling
+            # Items
             elif i == 4:
                 choice_input = input("Would you like to \n"
                                      "a. add an item \n"
                                      "b. edit an item \n"
                                      "c. remove an item \n")
                 choice_input.lower().strip()
+                # add item instance
                 if choice_input == 'a':
                     library.add_item()
+                # edit item instance
                 elif choice_input == 'b':
                     id_input = input("Enter Item ID: ")
                     library.edit_item(id_input)
-                    print(type(library.items['I5'].year))
-                    print(type(library.items['I1'].year))
+                # delete item instance
                 elif choice_input == 'c':
                     id_input = input("Enter Item ID: ")
                     library.delete_item(id_input)
                 else:
                     print("erro bitch")
                     # !! error handling
+            # return item
             elif i == 5:
                 member_input = input("Please enter member ID: ")
                 return_input = input("Please enter item ID: ")
                 library.return_item(return_input, member_input)
+            # exit code
             elif i == 6:
                 exit()
         except ValueError:
@@ -429,5 +481,6 @@ def main():
             print("Invalid input, please try again: ", '\n')
 
 
-main()
+# main()
 # library = Library('The University Library', 'Park House, 191 N Circular Rd, Co. Dublin, D07 EWV4, Ireland')
+# library.return_item('I4', 'M1')
