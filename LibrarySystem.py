@@ -1,5 +1,8 @@
 import csv
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+# all datetime code is based on the following links:
+# https://www.programiz.com/python-programming/datetime/current-datetime,
+# https://www.programiz.com/python-programming/datetime/strptime
 
 
 # classes
@@ -66,7 +69,7 @@ class Library(object):
                 items_dic[b[1]].available = False
         return items_dic
 
-    # item methods !! search by author as well
+    # item methods
     def search_items(self, word):
         global type
         word = word.lower().strip()
@@ -106,7 +109,10 @@ class Library(object):
 
         return results
 
-    def borrow_item(self, borrow_input):
+    def borrow_item(self):
+        borrow_input = input("Would you like to borrow an item? \n"
+                             "If yes, enter item ID\n"
+                             "If no, enter exit\n").strip()
         # return to command line menu
         if borrow_input == 'exit':
             return
@@ -119,13 +125,17 @@ class Library(object):
             # make the item unavailable
             self.items[borrow_input].available = False
             transaction_id = 'T' + str(len(self.borrow_info) + 1)
-            today = date.today().strftime('%d/%m/%Y')
-            expected_return = '+ 2 weeks'  # !! look up/figure out pls
+            today_obj = date.today()
+            today = today_obj.strftime('%d/%m/%Y')
+            expected_return = today_obj + timedelta(weeks=4.5)      # combination of the following links:
+            # https://stackoverflow.com/questions/35066588/is-there-a-simple-way-to-increment-a-datetime-object-one
+            # -month-in-python, https://www.geeksforgeeks.org/python-datetime-timedelta-function/
+
             # add the transaction to borrow_info
             self.borrow_info[transaction_id] = [member_id, borrow_input, today, expected_return, '']
             # add the transaction to the member
             self.members[member_id].items[transaction_id] = (today, '')
-
+            print("Happy reading or watching! ")
             # update borrowing.csv
             self.update_borrow_csv()
             return
@@ -151,6 +161,7 @@ class Library(object):
             # calculate how many days late the item was returned and the fine
             days_late = int((today_obj - latest_return_date).total_seconds() / 86400)
             self.members[member].fine += 0.25 * days_late
+        print("Item successfully returned, {}'s fine equals {} euros".format(self.members[member]), self.members[member].fine)
 
     def update_borrow_csv(self):
         labels = ['Transaction ID', 'Member ID', 'Item ID', 'Borrow date', 'Last expected return', 'Return date']
@@ -182,10 +193,13 @@ class Library(object):
         # create specific item                  better way? can you write Items and the correct item will be made?
         if category == 'a':
             self.items[item_id] = Book(item_id, title, l_name, f_name, year)
+            print("Book successfully added to the library")
         elif category == 'b':
             self.items[item_id] = Article(item_id, title, l_name, f_name, journal, year)
+            print("Article successfully added to the library")
         elif category == 'c':
             self.items[item_id] = DigitalMedia(item_id, title, l_name, f_name, year)
+            print("Article successfully added to the library")
         else:
             print('error')
             # !! error handling
@@ -231,7 +245,8 @@ class Library(object):
             # !! error handling if book or article
         else:
             print("error bitch")
-            # !! error handling
+            # !! error handling + exit
+        print('{} successfully updated!'.format(self.items[id].title))
         self.update_items_csv()
 
     def delete_item(self, id):
@@ -277,6 +292,7 @@ class Library(object):
         street = input("Enter street and number: ")
         city = input("Enter city: ")
         self.members[member_id] = Members(member_id, l_name, f_name, dob, street, city)
+        print("{} is successfully added as a member".format(self.members[member_id]))
         self.update_members_csv()
 
     def edit_member(self, id):
@@ -314,7 +330,8 @@ class Library(object):
             self.members[id].city = i
         else:
             print("error bitch")
-            # !! error handling
+            # !! error handling + exit
+        print("{}'s information is successfully updated".format(self.members[id]))
         self.update_members_csv()
 
     def delete_member(self, id):
@@ -360,8 +377,7 @@ class Members(object):
         self.fine = 0.0
 
     def __str__(self):
-        return '{} {} (Member ID: {}) has borrowed {} items' \
-            .format(self.f_name, self.l_name, self.member_id, len(self.items))
+        return '{} {} (Member ID: {})'.format(self.f_name, self.l_name, self.member_id)
 
 
 class Items(object):
@@ -459,20 +475,17 @@ def main():
                 else:
                     for r in results:
                         print(library.items[r])
-                    borrow_input = input("Would you like to borrow an item? \n"
-                                         "If yes, enter item ID\n"
-                                         "If no, enter exit\n").strip()
-                    if borrow_input != '':
-                        library.borrow_item(borrow_input)
+                    library.borrow_item()
             # Check availability of items
             elif i == 2:
                 id_input = input("Enter the item ID: ")
                 if library.items[id_input].available:
                     print('{} (Item ID: {}) is available for borrowing \n'.format(library.items[id_input].title,
-                                                                               library.items[id_input].item_id))
+                                                                                  library.items[id_input].item_id))
+                    library.borrow_item()
                 else:
                     print('{} (Item ID: {}) is unavailable for borrowing \n'.format(library.items[id_input].title,
-                                                                                 library.items[id_input].item_id))
+                                                                                    library.items[id_input].item_id))
             # Members
             elif i == 3:
                 choice_input = input("Would you like to \n"
@@ -523,8 +536,9 @@ def main():
             # exit code
             elif i == 6:
                 member_input = input("Please enter member ID: ")
-                print("{} owes {} euros in fines".format(library.members[member_input], library.members[member_input].fine))
-            elif i ==7:
+                print("{} owes {} euros in fines".format(library.members[member_input],
+                                                         library.members[member_input].fine))
+            elif i == 7:
                 exit()
         except ValueError:
             print("Invalid input, please try again: ", '\n')
@@ -534,4 +548,4 @@ def main():
 
 main()
 # library = Library('The University Library', 'Park House, 191 N Circular Rd, Co. Dublin, D07 EWV4, Ireland')
-# library.return_item('I4', 'M1')
+# library.borrow_item('I8')
