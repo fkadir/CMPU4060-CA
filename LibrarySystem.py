@@ -7,16 +7,84 @@ from datetime import date, datetime, timedelta
 
 # classes
 class Library(object):
-    def __init__(self, name, address):
+    """
+    A class to represent a library
+
+    Attributes
+    ----------
+    name: str
+    address: str
+    borrow_info: dict
+    items: dict
+    members: dict
+
+    Methods
+    -------
+    create_transaction_info(file)
+        creates dict with all transactions on file of the library
+    parse_file(file)
+        creates list of entries in csv file
+    create_members(file)
+        create dict with all members on file of the library
+    create_items(file)
+        create dict with all items on file of the library
+    search_items(word)
+        creates a list of items that contain the search word in the title or author
+    borrow_item()
+        borrow item from the library
+    return_item(item, member)
+        return item to the library
+    update_borrow_csv
+        update the borrowing.csv based on the borrowing info dict
+    add_item()
+        add specific item to the library
+    edit_item(item_id)
+        edit a specific item from the library
+    delete_item(item_id)
+        remove an item from the library
+    update_items_csv()
+        update the items.csv based on items dict
+    add_member()
+        add a member to the library
+    edit_member(member_id)
+        edit a specific member from the library
+    delete_member(member_id)
+        remove a member from the library
+    update_members_csv
+        update members.csv based on the members dict
+     """
+
+    def __init__(self, name: str, address: str):
+        """
+        Constructs all the necessary attributes for the library object.
+
+        Parameters
+        ----------
+        name: str
+            name of the library
+        address: str
+            library's address
+        """
         self.name = name
         self.address = address
         self.borrow_info = self.create_transaction_info('borrowing.csv')
-        self.items = self.create_items('items.csv', self.borrow_info)
-        self.members = self.create_members('members.csv', self.borrow_info)
+        self.items = self.create_items('items.csv')
+        self.members = self.create_members('members.csv')
 
     # methods for __init__
     @staticmethod
     def create_transaction_info(file):
+        """
+        Create dict with all transactions on file of the library.
+
+        Parameters
+        ----------
+        file : csv file
+
+        Returns
+        ---------
+        borrow_info dict
+        """
         with open(file, 'r') as csvfile:
             reader = csv.reader(csvfile)
             next(reader)
@@ -28,6 +96,17 @@ class Library(object):
 
     @staticmethod
     def parse_file(file):
+        """
+        Creates list of entries in csv file.
+
+        Parameters
+        ----------
+        file : csv file
+
+        Returns
+        ---------
+        list of csv entries
+        """
         entries = []
         with open(file, 'r') as csvfile:
             reader = csv.reader(csvfile)
@@ -36,18 +115,40 @@ class Library(object):
                 entries.append(row)
         return entries
 
-    def create_members(self, file, borrow_info):
+    def create_members(self, file):
+        """
+        Create dict with all members on file of the library.
+
+        Parameters
+        ----------
+        file : csv file
+
+        Returns
+        ---------
+        members dict
+        """
         member_info = self.parse_file(file)
         members_dict = {}
         for m in member_info:
             borrowed_dict = {}
-            for i in borrow_info.items():
+            for i in self.borrow_info.items():
                 if i[1][0] == m[0]:
                     borrowed_dict[i[0]] = (i[1][2], i[1][4])
             members_dict[m[0]] = Members(m[0], m[1], m[2], m[3], m[4], m[5], borrowed_dict)
         return members_dict
 
-    def create_items(self, file, borrow_info):
+    def create_items(self, file):
+        """
+        Create dict with all items on file of the library.
+
+        Parameters
+        ----------
+        file : csv file
+
+        Returns
+        ---------
+        items dict
+        """
         item_info = self.parse_file(file)
         items_dic = {}
         for i in item_info:
@@ -60,18 +161,30 @@ class Library(object):
             elif item_type == 'digital media':
                 items_dic[i[0]] = DigitalMedia(i[0], i[2], i[3], i[4], int(i[5]))
             else:
-                print('unable to create item, unknown item type')
-                # !! error handling
+                print(i)
+                print("Unable to create item")
 
         # label borrowed items as unavailable
-        for b in borrow_info.values():
+        for b in self.borrow_info.values():
             if b[4] == '':
                 items_dic[b[1]].available = False
         return items_dic
 
     # item methods
-    def search_items(self, word):
-        global type
+    def search_items(self, word: str):
+        """
+        Creates a list of items that contain the search word in the title or author.
+
+
+        Parameters
+        ----------
+        word : str
+
+        Returns
+        ---------
+        list of search results
+        """
+        item_type = str
         word = word.lower().strip()
         results = []
         category_option = input("Would you like the specify the type of item? (y/n) ")
@@ -81,13 +194,12 @@ class Library(object):
                                    "2. an Article \n"
                                    "3. Digital Media \n")
             if category_input == '1':
-                type = 'Book'
+                item_type = 'Book'
             elif category_input == '2':
-                type = 'Árticle'
+                item_type = 'Article'
             elif category_input == '3':
-                type = 'Digital Media'
+                item_type = 'Digital Media'
             else:
-                # !! error handling
                 print("invalid input")
 
             # if the item is of specified type and the search word is present in the title or author name,
@@ -96,7 +208,7 @@ class Library(object):
                 title = i.title.lower().split()
                 author_l_name = i.l_name.lower()
                 author_f_name = i.f_name.lower()
-                if i.type == type and word in title or word in author_f_name or word in author_l_name:
+                if i.type == item_type and word in title or word in author_f_name or word in author_l_name:
                     results.append(i.item_id)
         elif category_option == 'n':
             # if the search word is present in the title, add the item to the results list
@@ -106,10 +218,12 @@ class Library(object):
                 author_f_name = i.f_name.lower()
                 if word in title or word in author_f_name or word in author_l_name:
                     results.append(i.item_id)
-
         return results
 
     def borrow_item(self):
+        """
+        Borrow item from the library.
+        """
         borrow_input = input("Would you like to borrow an item? \n"
                              "If yes, enter item ID\n"
                              "If no, enter exit\n").strip()
@@ -122,12 +236,15 @@ class Library(object):
             if not self.items[borrow_input].available:
                 print('This item is unavailable for borrowing')
                 return
+            elif len(self.members[member_id].items) > 10:
+                print("Member has borrowed 10 items already")
+                return
             # make the item unavailable
             self.items[borrow_input].available = False
             transaction_id = 'T' + str(len(self.borrow_info) + 1)
             today_obj = date.today()
             today = today_obj.strftime('%d/%m/%Y')
-            expected_return = today_obj + timedelta(weeks=4.5)      # combination of the following links:
+            expected_return = today_obj + timedelta(weeks=4.5)  # combination of the following links:
             # https://stackoverflow.com/questions/35066588/is-there-a-simple-way-to-increment-a-datetime-object-one
             # -month-in-python, https://www.geeksforgeeks.org/python-datetime-timedelta-function/
 
@@ -140,7 +257,19 @@ class Library(object):
             self.update_borrow_csv()
             return
 
-    def return_item(self, item, member):
+    def return_item(self, item: str, member: str):
+        """
+        Return item to the library.
+
+        Parameters
+        ----------
+        item : str
+        member : str
+
+        Returns
+        ---------
+        None
+        """
         # mark item as available in the library
         self.items[item].available = True
 
@@ -161,22 +290,13 @@ class Library(object):
             # calculate how many days late the item was returned and the fine
             days_late = int((today_obj - latest_return_date).total_seconds() / 86400)
             self.members[member].fine += 0.25 * days_late
-        print("Item successfully returned, {}'s fine equals {} euros".format(self.members[member]), self.members[member].fine)
-
-    def update_borrow_csv(self):
-        labels = ['Transaction ID', 'Member ID', 'Item ID', 'Borrow date', 'Last expected return', 'Return date']
-        rows = []
-        for i in self.borrow_info.items():
-            # append the updated information to a list
-            a = [i[0], i[1][0], i[1][1], i[1][2], i[1][3], i[1][4]]
-            rows.append(a)
-        # write the updated information to borrowing.csv
-        with open('borrowing.csv', 'w+') as borrowing_csv:
-            csv_writer = csv.writer(borrowing_csv, lineterminator='\n')
-            csv_writer.writerow(labels)
-            csv_writer.writerows(rows)
+        print("{} is successfully returned, {}'s fine equals {} euros".format(self.items[item], self.members[member]),
+              self.members[member].fine)
 
     def add_item(self):
+        """
+        Add specific item to the library.
+        """
         # create item ID
         item_id = 'I' + str(len(self.items) + 1)
         category = input("category: \n"
@@ -199,16 +319,27 @@ class Library(object):
             print("Article successfully added to the library")
         elif category == 'c':
             self.items[item_id] = DigitalMedia(item_id, title, l_name, f_name, year)
-            print("Article successfully added to the library")
+            print("Digital Media successfully added to the library")
         else:
-            print('error')
-            # !! error handling
+            print("Invalid input: unable to add Item")
 
         self.update_items_csv()
 
-    def edit_item(self, id):
+    def edit_item(self, item_id: str):
+        """
+        Edit a specific item from the library.
+
+        Parameters
+        ----------
+        item_id : str
+
+        Returns
+        ---------
+        None
+        """
         item_input = input("Would you like to edit the following item: {} by {} {} (press enter to confirm or enter "
-                           "exit) ".format(self.items[id].title, self.items[id].f_name, self.items[id].l_name))
+                           "exit) ".format(self.items[item_id].title, self.items[item_id].f_name,
+                                           self.items[item_id].l_name))
         # return to command line menu
         if item_input.strip() == 'exit':
             return
@@ -223,45 +354,164 @@ class Library(object):
                           'g. Journal \n')
         if type_edit == 'a':
             i = input("Enter Item ID: ")
-            self.items[id].item_id = i
+            self.items[item_id].item_id = i
         elif type_edit == 'b':
             i = input("Enter Category: ")
-            self.items[id].type = i
+            self.items[item_id].type = i
         elif type_edit == 'c':
             i = input("Enter Title: ")
-            self.items[id].title = i
+            self.items[item_id].title = i
         elif type_edit == 'd':
             i = input("Enter Last Name: ")
-            self.items[id].l_name = i
+            self.items[item_id].l_name = i
         elif type_edit == 'e':
             i = input("Enter First Name: ")
-            self.items[id].f_name = i
+            self.items[item_id].f_name = i
         elif type_edit == 'f':
             i = int(input("Enter Publication/Release year: "))
-            self.items[id].year = i
+            self.items[item_id].year = i
         elif type_edit == 'g':
             i = input("Enter Journal: ")
-            self.items[id].journal = i
-            # !! error handling if book or article
+            self.items[item_id].journal = i
         else:
-            print("error bitch")
-            # !! error handling + exit
-        print('{} successfully updated!'.format(self.items[id].title))
+            print("Invalid input: unable to edit item")
+            return
+        print('{} successfully updated!'.format(self.items[item_id].title))
         self.update_items_csv()
 
-    def delete_item(self, id):
-        check = input("Are you sure you want to remove {}? (y/n) \n".format(self.items[id]))
+    def delete_item(self, item_id: str):
+        """
+        Remove an item from the library.
+
+        Parameters
+        ----------
+        item_id : str
+
+        Returns
+        ---------
+        None
+        """
+        check = input("Are you sure you want to remove {}? (y/n) \n".format(self.items[item_id]))
         if check == 'y':
-            removed_item = self.items.pop(id)
+            removed_item = self.items.pop(item_id)
             self.update_items_csv()
             print("{} was removed".format(removed_item))
         elif check == 'n':
-            print("{} was not removed".format(self.items[id]))
+            print("{} was not removed".format(self.items[item_id]))
         else:
-            print('invalid input')
-            # !! error handling
+            print('Invalid input: please try again')
+
+    # member methods
+    def add_member(self):
+        """
+            Add a member to the library.
+        """
+        # create member ID
+        member_id = 'M' + str(len(self.members) + 1)
+        # collect necessary member info
+        l_name = input("Enter last name: ")
+        f_name = input("Enter first name: ")
+        dob = input("Enter Date of Birth (dd/mm/yyyy): ")
+        street = input("Enter street and number: ")
+        city = input("Enter city: ")
+        self.members[member_id] = Members(member_id, l_name, f_name, dob, street, city)
+        print("{} is successfully added as a member".format(self.members[member_id]))
+        self.update_members_csv()
+
+    def edit_member(self, member_id: str):
+        """
+        Edit a specific member from the library.
+
+        Parameters
+        ----------
+        member_id : str
+
+        Returns
+        ---------
+        None
+        """
+        item_input = input("Would you like to edit the following member: {} {} (Member ID: {}) (press enter to "
+                           "confirm or enter exit) ".format(self.members[member_id].f_name,
+                                                            self.members[member_id].l_name,
+                                                            self.members[member_id].member_id))
+        # return to command line
+        if item_input.strip() == 'exit':
+            return
+        # choose what member info to edit
+        type_edit = input('What would you like to edit? \n'
+                          'a. Member ID \n'
+                          'b. Last Name \n'
+                          'c. First Name \n'
+                          'd. Date of Birth \n'
+                          'e. Street and number \n'
+                          'f. City \n')
+        if type_edit == 'a':
+            i = input("Enter Member ID: ")
+            self.members[member_id].member_id = i
+        elif type_edit == 'b':
+            i = input("Enter Last Name: ")
+            self.members[member_id].l_name = i
+        elif type_edit == 'c':
+            i = input("Enter First Name: ")
+            self.members[member_id].f_name = i
+        elif type_edit == 'd':
+            i = input("Enter Date of Birth: ")
+            self.members[member_id].dob = i
+        elif type_edit == 'e':
+            i = input("Enter Street and number: ")
+            self.members[member_id].street = i
+        elif type_edit == 'f':
+            i = input("Enter City: ")
+            self.members[member_id].city = i
+        else:
+            print("Invalid input: unable to edit member")
+            return
+        print("{}'s information is successfully updated".format(self.members[member_id]))
+        self.update_members_csv()
+
+    def delete_member(self, member_id: str):
+        """
+        Remove a member from the library.
+
+        Parameters
+        ----------
+        member_id : str
+
+        Returns
+        ---------
+        None
+        """
+        check = input("Are you sure you want to remove {}? (y/n) \n".format(self.members[member_id]))
+        if check == 'y':
+            removed_member = self.members.pop(member_id)
+            self.update_members_csv()
+            print("{} was removed".format(removed_member))
+        elif check == 'n':
+            print("{} was not removed".format(self.members[member_id]))
+        else:
+            print("Invalid input: please try again")
+
+    # methods to update external files
+    def update_members_csv(self):
+        """
+            Update members.csv based on the dict containing the members
+        """
+        labels = ['Member ID', 'Last name', 'First name', 'Date of Birth', 'Street', 'City']
+        rows = []
+        for i in self.members.values():
+            # append the updated information to a list
+            a = [i.member_id, i.l_name, i.f_name, i.dob, i.street, i.city]
+            rows.append(a)
+        # write the updated information to members.csv
+        with open('members.csv', 'w+') as members_csv:
+            csv_writer = csv.writer(members_csv, lineterminator='\n')
+            csv_writer.writerow(labels)
+            csv_writer.writerows(rows)
 
     def update_items_csv(self):
+        """
+        Update the items.csv based on the dict containing items.
+        """
         labels = ['Item ID', 'Category', 'Title', 'Last name', 'First name', 'publication year', 'journal']
         rows = []
         for i in self.items.values():
@@ -281,90 +531,57 @@ class Library(object):
             csv_writer.writerow(labels)
             csv_writer.writerows(rows)
 
-    # member methods
-    def add_member(self):
-        # create member ID
-        member_id = 'M' + str(len(self.members) + 1)
-        # collect necessary member info
-        l_name = input("Enter last name: ")
-        f_name = input("Enter first name: ")
-        dob = input("Enter Date of Birth (dd/mm/yyyy): ")
-        street = input("Enter street and number: ")
-        city = input("Enter city: ")
-        self.members[member_id] = Members(member_id, l_name, f_name, dob, street, city)
-        print("{} is successfully added as a member".format(self.members[member_id]))
-        self.update_members_csv()
-
-    def edit_member(self, id):
-        item_input = input("Would you like to edit the following member: {} {} (Member ID: {}) (press enter to "
-                           "confirm or enter exit) ".format(self.members[id].f_name, self.members[id].l_name,
-                                                            self.members[id].member_id))
-        # return to command line
-        if item_input.strip() == 'exit':
-            return
-        # choose what member info to edit
-        type_edit = input('What would you like to edit? \n'
-                          'a. Member ID \n'
-                          'b. Last Name \n'
-                          'c. First Name \n'
-                          'd. Date of Birth \n'
-                          'e. Street and number \n'
-                          'f. City \n')
-        if type_edit == 'a':
-            i = input("Enter Member ID: ")
-            self.members[id].member_id = i
-        elif type_edit == 'b':
-            i = input("Enter Last Name: ")
-            self.members[id].l_name = i
-        elif type_edit == 'c':
-            i = input("Enter First Name: ")
-            self.members[id].f_name = i
-        elif type_edit == 'd':
-            i = input("Enter Date of Birth: ")
-            self.members[id].dob = i
-        elif type_edit == 'e':
-            i = input("Enter Street and number: ")
-            self.members[id].street = i
-        elif type_edit == 'f':
-            i = input("Enter City: ")
-            self.members[id].city = i
-        else:
-            print("error bitch")
-            # !! error handling + exit
-        print("{}'s information is successfully updated".format(self.members[id]))
-        self.update_members_csv()
-
-    def delete_member(self, id):
-        check = input("Are you sure you want to remove {}? (y/n) \n".format(self.members[id]))
-        if check == 'y':
-            removed_member = self.members.pop(id)
-            self.update_members_csv()
-            print("{} was removed".format(removed_member))
-        elif check == 'n':
-            print("{} was not removed".format(self.members[id]))
-        else:
-            print('invalid input')
-            # !! error handling
-
-    def update_members_csv(self):
-        labels = ['Member ID', 'Last name', 'First name', 'Date of Birth', 'Street', 'City']
+    def update_borrow_csv(self):
+        """
+        Update the borrowing.csv based on the borrowing info dict.
+        """
+        labels = ['Transaction ID', 'Member ID', 'Item ID', 'Borrow date', 'Last expected return', 'Return date']
         rows = []
-        for i in self.members.values():
+        for i in self.borrow_info.items():
             # append the updated information to a list
-            a = [i.member_id, i.l_name, i.f_name, i.dob, i.street, i.city]
+            a = [i[0], i[1][0], i[1][1], i[1][2], i[1][3], i[1][4]]
             rows.append(a)
-        # write the updated information to members.csv
-        with open('members.csv', 'w+') as members_csv:
-            csv_writer = csv.writer(members_csv, lineterminator='\n')
+        # write the updated information to borrowing.csv
+        with open('borrowing.csv', 'w+') as borrowing_csv:
+            csv_writer = csv.writer(borrowing_csv, lineterminator='\n')
             csv_writer.writerow(labels)
             csv_writer.writerows(rows)
 
     def __str__(self):
-        return '{} at {}'.format(self.name, self.address)
+        return '{} at {} has {} items and {} members'.format(self.name, self.address, len(self.items),
+                                                             len(self.members))
 
 
 class Members(object):
-    def __init__(self, ID, l_name, f_name, DOB, street, city, borrowed_items=None):
+    """
+    A class to represent library members
+
+    Attributes
+    ----------
+    member_id : str
+    l_name : str
+    f_name : str
+    dob : str
+    street : str
+    city : str
+    items : dict
+    fine : float
+     """
+
+    def __init__(self, ID: str, l_name: str, f_name: str, DOB: str, street: str, city: str, borrowed_items: dict):
+        """
+        Constructs all the necessary attributes for the library object.
+
+        Parameters
+        ----------
+        ID : str
+        l_name : str
+        f_name : str
+        DOB : str
+        street : str
+        city : str
+        borrowed_items : dict
+        """
         if borrowed_items is None:
             borrowed_items = {}
         self.member_id = ID
@@ -381,7 +598,27 @@ class Members(object):
 
 
 class Items(object):
-    def __init__(self, ID, category, title):
+    """
+    A class to represent library items. 
+
+    Attributes
+    ----------
+    item_id : str
+    title : str
+    type : str
+    available : boolean
+     """
+
+    def __init__(self, ID: str, category: str, title: str):
+        """
+        Constructs all the necessary attributes for the library object.
+
+        Parameters
+        ----------
+        ID : str
+        title : str
+        category : str
+        """
         self.item_id = ID
         self.title = title
         self.type = category
@@ -389,17 +626,34 @@ class Items(object):
 
     def __str__(self):
         if self.available:
-            return '{} (Item ID: {}) is a {} and available to borrow'.format(self.title,
-                                                                             self.item_id,
-                                                                             self.type)
+            return '{} (Item ID: {}) is a {} and available to borrow'.format(self.title, self.item_id, self.type)
         else:
-            return '{} (Item ID: {}) is a {} and unavailable to borrow'.format(self.title,
-                                                                               self.item_id,
-                                                                               self.type)
+            return '{} (Item ID: {}) is a {} and unavailable to borrow'.format(self.title, self.item_id, self.type)
 
 
 class Book(Items):
-    def __init__(self, ID, title, l_name, f_name, yof=0000):
+    """
+    A subclass to represent book items.
+
+    Attributes
+    ----------
+    l_name : str
+    f_name : str
+    year : int
+     """
+
+    def __init__(self, ID: str, title: str, l_name: str, f_name: str, yof=0000):
+        """
+        Constructs all the necessary attributes for the book object.
+
+        Parameters
+        ----------
+        ID : str
+        title : str
+        l_name : str
+        f_name : str
+        yof : int
+        """
         Items.__init__(self, ID, 'Book', title)
         self.l_name = l_name
         self.f_name = f_name
@@ -415,7 +669,30 @@ class Book(Items):
 
 
 class Article(Items):
-    def __init__(self, ID, title, l_name, f_name, journal, yof=0000):
+    """
+    A class to represent article items.
+
+    Attributes
+    ----------
+    l_name : str
+    f_name: str
+    journal : str
+    year : int
+     """
+
+    def __init__(self, ID: str, title: str, l_name: str, f_name: str, journal: str, yof=0000):
+        """
+        Constructs all the necessary attributes for the article object.
+
+        Parameters
+        ----------
+        ID : str
+        title : str
+        l_name : str
+        f_name : str
+        journal : str
+        yof : int
+        """
         Items.__init__(self, ID, 'Article', title)
         self.l_name = l_name
         self.f_name = f_name
@@ -424,17 +701,37 @@ class Article(Items):
 
     def __str__(self):
         if self.available:
-            return 'The Article: {} (Item ID: {}) from {} was written by {} {} in {} and is available for borrowing'.format(
-                self.title, self.item_id, self.journal, self.f_name, self.l_name,
-                self.year)
+            return 'The Article: {} (Item ID: {}) from {} was written by {} {} in {} and is available for borrowing' \
+                .format(self.title, self.item_id, self.journal, self.f_name, self.l_name, self.year)
         else:
-            return 'The Article: {} (Item ID: {}) from {} was written by {} {} in {} and is unavailable for borrowing'.format(
-                self.title, self.item_id, self.journal, self.f_name, self.l_name,
-                self.year)
+            return 'The Article: {} (Item ID: {}) from {} was written by {} {} in {} and is unavailable for borrowing' \
+                .format(self.title, self.item_id, self.journal, self.f_name, self.l_name, self.year)
 
 
 class DigitalMedia(Items):
-    def __init__(self, ID, title, l_name, f_name, year=0000):
+    """
+    A class to represent library items. 
+
+    Attributes
+    ----------
+    year : int
+    l_name : str
+    f_name : str
+
+     """
+
+    def __init__(self, ID: str, title: str, l_name: str, f_name: str, year=0000):
+        """
+        Constructs all the necessary attributes for the library object.
+
+        Parameters
+        ----------
+        ID : str
+        title : str
+        l_name : str
+        f_name : str
+        year : int
+        """
         Items.__init__(self, ID, 'Digital Media', title)
         self.year = year
         self.l_name = l_name
@@ -442,11 +739,11 @@ class DigitalMedia(Items):
 
     def __str__(self):
         if self.available:
-            return 'The Digital Media: {} (Item ID: {}) is directed by {} {} in {} and available for borrowing'.format(
-                self.title, self.item_id, self.f_name, self.l_name, self.year)
+            return 'The Digital Media: {} (Item ID: {}) is directed by {} {} in {} and available for borrowing'. \
+                format(self.title, self.item_id, self.f_name, self.l_name, self.year)
         else:
-            return 'The Digital Media: {} (Item ID: {}) is directed by {} {} in {} and unavailable for borrowing'.format(
-                self.title, self.item_id, self.f_name, self.l_name, self.year)
+            return 'The Digital Media: {} (Item ID: {}) is directed by {} {} in {} and unavailable for borrowing' \
+                .format(self.title, self.item_id, self.f_name, self.l_name, self.year)
 
 
 # main
@@ -505,8 +802,7 @@ def main():
                     id_input = input("Enter member ID: ")
                     library.delete_member(id_input)
                 else:
-                    print("erro bitch")
-                    # !! error handling
+                    print("Invalid input: please try again")
             # Items
             elif i == 4:
                 choice_input = input("Would you like to \n"
@@ -526,8 +822,7 @@ def main():
                     id_input = input("Enter Item ID: ")
                     library.delete_item(id_input)
                 else:
-                    print("erro bitch")
-                    # !! error handling
+                    print("Invalid input: please try again")
             # return item
             elif i == 5:
                 member_input = input("Please enter member ID: ")
@@ -547,5 +842,3 @@ def main():
 
 
 main()
-# library = Library('The University Library', 'Park House, 191 N Circular Rd, Co. Dublin, D07 EWV4, Ireland')
-# library.borrow_item('I8')
