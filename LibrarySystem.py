@@ -1,6 +1,6 @@
 import csv
 from datetime import date, datetime, timedelta
-# all datetime code is based on the following links:
+# all datetime code is based on the following articles:
 # https://www.programiz.com/python-programming/datetime/current-datetime,
 # https://www.programiz.com/python-programming/datetime/strptime
 
@@ -71,7 +71,7 @@ class Library(object):
         self.items = self.create_items('items.csv')
         self.members = self.create_members('members.csv')
 
-    # methods for __init__
+    # methods to set up the library
     @staticmethod
     def create_transaction_info(file):
         """
@@ -90,6 +90,7 @@ class Library(object):
             next(reader)
             entries = {}
             for row in reader:
+                # the transaction id is the key, and the rest of the info is the value in the dict
                 info = [row[1], row[2], row[3], row[4], row[5]]
                 entries[row[0]] = info
         return entries
@@ -132,6 +133,7 @@ class Library(object):
         for m in member_info:
             borrowed_dict = {}
             for i in self.borrow_info.items():
+                # if the member id is present in the borrowing info, the transaction is added to the borrowed_dict
                 if i[1][0] == m[0]:
                     borrowed_dict[i[0]] = (i[1][2], i[1][4])
             members_dict[m[0]] = Members(m[0], m[1], m[2], m[3], m[4], m[5], borrowed_dict)
@@ -236,17 +238,20 @@ class Library(object):
             if not self.items[borrow_input].available:
                 print('This item is unavailable for borrowing')
                 return
+            # check how many items the member has borrowed
             elif len(self.members[member_id].items) > 10:
                 print("Member has borrowed 10 items already")
                 return
             # make the item unavailable
             self.items[borrow_input].available = False
+            # create/determine transaction info
             transaction_id = 'T' + str(len(self.borrow_info) + 1)
             today_obj = date.today()
             today = today_obj.strftime('%d/%m/%Y')
-            expected_return = today_obj + timedelta(weeks=4.5)  # combination of the following links:
+            expected_return_obj = today_obj + timedelta(weeks=4.5)  # combination of the following links:
             # https://stackoverflow.com/questions/35066588/is-there-a-simple-way-to-increment-a-datetime-object-one
             # -month-in-python, https://www.geeksforgeeks.org/python-datetime-timedelta-function/
+            expected_return = expected_return_obj.strftime('%d/%m/%Y')
 
             # add the transaction to borrow_info
             self.borrow_info[transaction_id] = [member_id, borrow_input, today, expected_return, '']
@@ -255,7 +260,6 @@ class Library(object):
             print("Happy reading or watching! ")
             # update borrowing.csv
             self.update_borrow_csv()
-            return
 
     def return_item(self, item: str, member: str):
         """
@@ -280,8 +284,10 @@ class Library(object):
                 transaction_id = i[0]
         today_obj = date.today()
         today = today_obj.strftime('%d/%m/%Y')
+        # add the return date to library's borrow info and member's borrowed dict
         self.borrow_info[transaction_id][4] = today
         self.members[member].items[transaction_id] = (self.members[member].items[transaction_id][0], today)
+        # update borrowing.csv
         self.update_borrow_csv()
 
         # check if item is overdue and update the member's fine
@@ -290,8 +296,9 @@ class Library(object):
             # calculate how many days late the item was returned and the fine
             days_late = int((today_obj - latest_return_date).total_seconds() / 86400)
             self.members[member].fine += 0.25 * days_late
-        print("{} is successfully returned, {}'s fine equals {} euros".format(self.items[item], self.members[member]),
-              self.members[member].fine)
+        print("{} is successfully returned, {}'s fine equals {} euros".format(self.items[item].title,
+                                                                              self.members[member],
+                                                                              self.members[member].fine))
 
     def add_item(self):
         """
@@ -515,16 +522,14 @@ class Library(object):
         labels = ['Item ID', 'Category', 'Title', 'Last name', 'First name', 'publication year', 'journal']
         rows = []
         for i in self.items.values():
-            # append the updated information to a list depending on type of item
-            if i.type == 'Book':
-                a = [i.item_id, i.type, i.title, i.l_name, i.f_name, i.year]
-                rows.append(a)
-            elif i.type == 'Article':
+            # append the updated information to a list (only article has journal attribute)
+            if i.type == 'Article':
                 a = [i.item_id, i.type, i.title, i.l_name, i.f_name, i.year, i.journal]
                 rows.append(a)
             else:
                 a = [i.item_id, i.type, i.title, i.l_name, i.f_name, i.year]
                 rows.append(a)
+
         # write the updated information to items.csv
         with open('items.csv', 'w+') as items_csv:
             csv_writer = csv.writer(items_csv, lineterminator='\n')
@@ -757,8 +762,8 @@ def main():
                           "2. Check availability?\n"
                           "3. Add, edit or remove a member?\n"
                           "4. Add, edit or remove an item?\n"
-                          "5. Return Item?\n"
-                          "6. Check Member's fine?\n"
+                          "5. Return an item?\n"
+                          "6. Check a member's fine?\n"
                           "7. Quit program\n"))
             # call correct function depending on user input
             # Browse items
@@ -783,7 +788,7 @@ def main():
                 else:
                     print('{} (Item ID: {}) is unavailable for borrowing \n'.format(library.items[id_input].title,
                                                                                     library.items[id_input].item_id))
-            # Members
+            # Member options menu
             elif i == 3:
                 choice_input = input("Would you like to \n"
                                      "a. add a member \n"
@@ -803,7 +808,7 @@ def main():
                     library.delete_member(id_input)
                 else:
                     print("Invalid input: please try again")
-            # Items
+            # Item options menu
             elif i == 4:
                 choice_input = input("Would you like to \n"
                                      "a. add an item \n"
